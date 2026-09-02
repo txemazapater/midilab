@@ -13,6 +13,7 @@ type
     ClearButton: TButton;
     ConnectInputButton: TButton;
     ConnectOutputButton: TButton;
+    DiscoveryButton: TButton;
     InputCombo: TComboBox;
     InputLabel: TLabel;
     MonitorList: TListView;
@@ -30,6 +31,7 @@ type
     procedure ClearButtonClick(Sender: TObject);
     procedure ConnectInputButtonClick(Sender: TObject);
     procedure ConnectOutputButtonClick(Sender: TObject);
+    procedure DiscoveryButtonClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure PollTimerTimer(Sender: TObject);
@@ -52,11 +54,9 @@ implementation
 
 {$R *.lfm}
 
-{$IFDEF WINDOWS}
-uses Midi.WinMM, patchdumpform;
-{$ELSE}
-uses Midi.Null, patchdumpform;
-{$ENDIF}
+uses
+  patchdumpform, discoveryform
+  {$IFDEF WINDOWS}, Midi.WinMM{$ELSE}, Midi.Null{$ENDIF};
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
@@ -105,6 +105,11 @@ end;
 procedure TForm1.PatchDumpButtonClick(Sender: TObject);
 begin
   with TMidiPatchDumpForm.Create(Self) do Show;
+end;
+
+procedure TForm1.DiscoveryButtonClick(Sender: TObject);
+begin
+  with TMidiDiscoveryForm.Create(Self) do Show;
 end;
 
 procedure TForm1.ConnectInputButtonClick(Sender: TObject);

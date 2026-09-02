@@ -20,6 +20,7 @@
       <Unit><Filename Value="midilab.lpr"/><IsPartOfProject Value="True"/></Unit>
       <Unit><Filename Value="mainform.pas"/><IsPartOfProject Value="True"/><ComponentName Value="Form1"/><ResourceBaseClass Value="Form"/></Unit>
       <Unit><Filename Value="patchdumpform.pas"/><IsPartOfProject Value="True"/><ComponentName Value="MidiPatchDumpForm"/><ResourceBaseClass Value="Form"/></Unit>
+      <Unit><Filename Value="discoveryform.pas"/><IsPartOfProject Value="True"/><ComponentName Value="MidiDiscoveryForm"/><ResourceBaseClass Value="Form"/></Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
