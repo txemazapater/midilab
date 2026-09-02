@@ -10,28 +10,37 @@ uses
 
 type
   TForm1 = class(TForm)
+    ClearButton: TButton;
+    ConnectInputButton: TButton;
+    ConnectOutputButton: TButton;
+    InputCombo: TComboBox;
+    InputLabel: TLabel;
+    MonitorList: TListView;
+    OutputCombo: TComboBox;
+    OutputLabel: TLabel;
+    PollTimer: TTimer;
+    RawEdit: TEdit;
+    RawLabel: TLabel;
+    RefreshButton: TButton;
+    SendButton: TButton;
+    SendPanel: TPanel;
+    StatusBar: TStatusBar;
+    TopPanel: TPanel;
+    procedure ClearButtonClick(Sender: TObject);
+    procedure ConnectInputButtonClick(Sender: TObject);
+    procedure ConnectOutputButtonClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure PollTimerTimer(Sender: TObject);
+    procedure RefreshButtonClick(Sender: TObject);
+    procedure SendButtonClick(Sender: TObject);
   private
     FBackend: IMidiBackend;
     FInputs, FOutputs: TMidiEndpointArray;
     FInput: IMidiInput;
     FOutput: IMidiOutput;
-    FInputCombo, FOutputCombo: TComboBox;
-    FConnectInput, FConnectOutput, FRefresh, FSend, FClear: TButton;
-    FRawEdit: TEdit;
-    FMonitor: TListView;
-    FTimer: TTimer;
-    FStatus: TStatusBar;
-    procedure BuildUi;
-    procedure RefreshDevices(Sender: TObject);
-    procedure ToggleInput(Sender: TObject);
-    procedure ToggleOutput(Sender: TObject);
-    procedure SendRaw(Sender: TObject);
-    procedure ClearMonitor(Sender: TObject);
-    procedure PollInput(Sender: TObject);
+    procedure RefreshDevices;
     procedure AddMessage(const AMessage: TMidiMessage);
-  public
-    procedure AfterConstruction; override;
-    destructor Destroy; override;
   end;
 
 var
@@ -47,101 +56,137 @@ uses Midi.WinMM;
 uses Midi.Null;
 {$ENDIF}
 
-procedure TForm1.AfterConstruction;
+procedure TForm1.FormCreate(Sender: TObject);
 begin
-  inherited AfterConstruction;
   {$IFDEF WINDOWS}
   FBackend := TWinMMMidiBackend.Create;
   {$ELSE}
   FBackend := TNullMidiBackend.Create;
   {$ENDIF}
-  BuildUi;
-  RefreshDevices(nil);
+  RefreshDevices;
 end;
 
-destructor TForm1.Destroy;
+procedure TForm1.FormDestroy(Sender: TObject);
 begin
+  PollTimer.Enabled := False;
   if FInput <> nil then FInput.Stop;
   FInput := nil;
   FOutput := nil;
   FBackend := nil;
-  inherited Destroy;
 end;
 
-procedure TForm1.BuildUi;
-var TopPanel, SendPanel: TPanel; L: TLabel;
-begin
-  Caption := 'MidiLab'; Width := 980; Height := 620; Position := poScreenCenter;
-  TopPanel := TPanel.Create(Self); TopPanel.Parent := Self; TopPanel.Align := alTop; TopPanel.Height := 84;
-  L := TLabel.Create(Self); L.Parent := TopPanel; L.Caption := 'MIDI input'; L.SetBounds(12, 10, 100, 20);
-  FInputCombo := TComboBox.Create(Self); FInputCombo.Parent := TopPanel; FInputCombo.Style := csDropDownList; FInputCombo.SetBounds(12, 31, 300, 30);
-  FConnectInput := TButton.Create(Self); FConnectInput.Parent := TopPanel; FConnectInput.Caption := 'Connect'; FConnectInput.SetBounds(320, 29, 90, 32); FConnectInput.OnClick := @ToggleInput;
-  L := TLabel.Create(Self); L.Parent := TopPanel; L.Caption := 'MIDI output'; L.SetBounds(430, 10, 100, 20);
-  FOutputCombo := TComboBox.Create(Self); FOutputCombo.Parent := TopPanel; FOutputCombo.Style := csDropDownList; FOutputCombo.SetBounds(430, 31, 300, 30);
-  FConnectOutput := TButton.Create(Self); FConnectOutput.Parent := TopPanel; FConnectOutput.Caption := 'Connect'; FConnectOutput.SetBounds(738, 29, 90, 32); FConnectOutput.OnClick := @ToggleOutput;
-  FRefresh := TButton.Create(Self); FRefresh.Parent := TopPanel; FRefresh.Caption := 'Refresh'; FRefresh.SetBounds(840, 29, 90, 32); FRefresh.OnClick := @RefreshDevices;
-  SendPanel := TPanel.Create(Self); SendPanel.Parent := Self; SendPanel.Align := alBottom; SendPanel.Height := 78;
-  L := TLabel.Create(Self); L.Parent := SendPanel; L.Caption := 'Raw hexadecimal MIDI'; L.SetBounds(12, 8, 180, 20);
-  FRawEdit := TEdit.Create(Self); FRawEdit.Parent := SendPanel; FRawEdit.Text := 'B0 10 64'; FRawEdit.SetBounds(12, 31, 700, 30);
-  FSend := TButton.Create(Self); FSend.Parent := SendPanel; FSend.Caption := 'Send'; FSend.SetBounds(720, 29, 90, 32); FSend.OnClick := @SendRaw;
-  FClear := TButton.Create(Self); FClear.Parent := SendPanel; FClear.Caption := 'Clear'; FClear.SetBounds(820, 29, 90, 32); FClear.OnClick := @ClearMonitor;
-  FStatus := TStatusBar.Create(Self); FStatus.Parent := Self; FStatus.Align := alBottom; FStatus.SimplePanel := True;
-  FMonitor := TListView.Create(Self); FMonitor.Parent := Self; FMonitor.Align := alClient; FMonitor.ViewStyle := vsReport; FMonitor.ReadOnly := True; FMonitor.RowSelect := True;
-  FMonitor.Columns.Add.Caption := 'UTC time'; FMonitor.Columns[0].Width := 110;
-  FMonitor.Columns.Add.Caption := 'Dir'; FMonitor.Columns[1].Width := 45;
-  FMonitor.Columns.Add.Caption := 'Raw bytes'; FMonitor.Columns[2].Width := 260;
-  FMonitor.Columns.Add.Caption := 'Decoded'; FMonitor.Columns[3].Width := 430;
-  FTimer := TTimer.Create(Self); FTimer.Interval := 20; FTimer.OnTimer := @PollInput; FTimer.Enabled := True;
-end;
-
-procedure TForm1.RefreshDevices(Sender: TObject);
+procedure TForm1.RefreshDevices;
 var I: Integer;
 begin
-  if (FInput <> nil) or (FOutput <> nil) then begin FStatus.SimpleText := 'Disconnect endpoints before refreshing.'; Exit; end;
-  FInputs := FBackend.EnumerateInputs; FOutputs := FBackend.EnumerateOutputs;
-  FInputCombo.Clear; for I := 0 to High(FInputs) do FInputCombo.Items.Add(FInputs[I].Name);
-  FOutputCombo.Clear; for I := 0 to High(FOutputs) do FOutputCombo.Items.Add(FOutputs[I].Name);
-  if FInputCombo.Items.Count > 0 then FInputCombo.ItemIndex := 0;
-  if FOutputCombo.Items.Count > 0 then FOutputCombo.ItemIndex := 0;
-  FStatus.SimpleText := Format('%s: %d input(s), %d output(s)', [FBackend.Name, Length(FInputs), Length(FOutputs)]);
+  if (FInput <> nil) or (FOutput <> nil) then
+  begin
+    StatusBar.SimpleText := 'Disconnect endpoints before refreshing.';
+    Exit;
+  end;
+  FInputs := FBackend.EnumerateInputs;
+  FOutputs := FBackend.EnumerateOutputs;
+  InputCombo.Clear;
+  for I := 0 to High(FInputs) do InputCombo.Items.Add(FInputs[I].Name);
+  OutputCombo.Clear;
+  for I := 0 to High(FOutputs) do OutputCombo.Items.Add(FOutputs[I].Name);
+  if InputCombo.Items.Count > 0 then InputCombo.ItemIndex := 0;
+  if OutputCombo.Items.Count > 0 then OutputCombo.ItemIndex := 0;
+  StatusBar.SimpleText := Format('%s: %d input(s), %d output(s)',
+    [FBackend.Name, Length(FInputs), Length(FOutputs)]);
 end;
 
-procedure TForm1.ToggleInput(Sender: TObject);
+procedure TForm1.RefreshButtonClick(Sender: TObject);
+begin
+  RefreshDevices;
+end;
+
+procedure TForm1.ConnectInputButtonClick(Sender: TObject);
 begin
   try
-    if FInput <> nil then begin FInput.Stop; FInput := nil; FConnectInput.Caption := 'Connect'; end
-    else begin if FInputCombo.ItemIndex < 0 then Exit; FInput := FBackend.OpenInput(FInputs[FInputCombo.ItemIndex]); FInput.Start; FConnectInput.Caption := 'Disconnect'; end;
-  except on E: Exception do FStatus.SimpleText := E.Message; end;
+    if FInput <> nil then
+    begin
+      FInput.Stop;
+      FInput := nil;
+      ConnectInputButton.Caption := 'Connect';
+    end
+    else
+    begin
+      if InputCombo.ItemIndex < 0 then Exit;
+      FInput := FBackend.OpenInput(FInputs[InputCombo.ItemIndex]);
+      FInput.Start;
+      ConnectInputButton.Caption := 'Disconnect';
+    end;
+  except
+    on E: Exception do StatusBar.SimpleText := E.Message;
+  end;
 end;
 
-procedure TForm1.ToggleOutput(Sender: TObject);
+procedure TForm1.ConnectOutputButtonClick(Sender: TObject);
 begin
   try
-    if FOutput <> nil then begin FOutput := nil; FConnectOutput.Caption := 'Connect'; end
-    else begin if FOutputCombo.ItemIndex < 0 then Exit; FOutput := FBackend.OpenOutput(FOutputs[FOutputCombo.ItemIndex]); FConnectOutput.Caption := 'Disconnect'; end;
-  except on E: Exception do FStatus.SimpleText := E.Message; end;
+    if FOutput <> nil then
+    begin
+      FOutput := nil;
+      ConnectOutputButton.Caption := 'Connect';
+    end
+    else
+    begin
+      if OutputCombo.ItemIndex < 0 then Exit;
+      FOutput := FBackend.OpenOutput(FOutputs[OutputCombo.ItemIndex]);
+      ConnectOutputButton.Caption := 'Disconnect';
+    end;
+  except
+    on E: Exception do StatusBar.SimpleText := E.Message;
+  end;
 end;
 
-procedure TForm1.SendRaw(Sender: TObject);
-var B: TMidiBytes; ErrorText: string; M: TMidiMessage;
+procedure TForm1.SendButtonClick(Sender: TObject);
+var
+  B: TMidiBytes;
+  ErrorText: string;
+  M: TMidiMessage;
 begin
-  if FOutput = nil then begin FStatus.SimpleText := 'Connect a MIDI output first.'; Exit; end;
-  if not TryHexToBytes(FRawEdit.Text, B, ErrorText) then begin FStatus.SimpleText := ErrorText; Exit; end;
-  try FOutput.Send(B); M := MidiMessageFromBytes(B, mdOutput, FOutput.Endpoint.Id); AddMessage(M);
-  except on E: Exception do FStatus.SimpleText := E.Message; end;
+  if FOutput = nil then
+  begin
+    StatusBar.SimpleText := 'Connect a MIDI output first.';
+    Exit;
+  end;
+  if not TryHexToBytes(RawEdit.Text, B, ErrorText) then
+  begin
+    StatusBar.SimpleText := ErrorText;
+    Exit;
+  end;
+  try
+    FOutput.Send(B);
+    M := MidiMessageFromBytes(B, mdOutput, FOutput.Endpoint.Id);
+    AddMessage(M);
+  except
+    on E: Exception do StatusBar.SimpleText := E.Message;
+  end;
 end;
 
-procedure TForm1.ClearMonitor(Sender: TObject); begin FMonitor.Items.Clear; end;
-procedure TForm1.PollInput(Sender: TObject);
+procedure TForm1.ClearButtonClick(Sender: TObject);
+begin
+  MonitorList.Items.Clear;
+end;
+
+procedure TForm1.PollTimerTimer(Sender: TObject);
 var M: TMidiMessage;
-begin if FInput <> nil then while FInput.TryRead(M) do AddMessage(M); end;
+begin
+  if FInput <> nil then
+    while FInput.TryRead(M) do AddMessage(M);
+end;
 
 procedure TForm1.AddMessage(const AMessage: TMidiMessage);
 var Item: TListItem;
 begin
-  Item := FMonitor.Items.Add; Item.Caption := FormatDateTime('hh:nn:ss.zzz', AMessage.TimestampUtc);
-  if AMessage.Direction = mdInput then Item.SubItems.Add('IN') else Item.SubItems.Add('OUT');
-  Item.SubItems.Add(BytesToHex(AMessage.RawBytes)); Item.SubItems.Add(MidiMessageDescription(AMessage)); Item.MakeVisible(False);
+  Item := MonitorList.Items.Add;
+  Item.Caption := FormatDateTime('hh:nn:ss.zzz', AMessage.TimestampUtc);
+  if AMessage.Direction = mdInput then Item.SubItems.Add('IN')
+  else Item.SubItems.Add('OUT');
+  Item.SubItems.Add(BytesToHex(AMessage.RawBytes));
+  Item.SubItems.Add(MidiMessageDescription(AMessage));
+  Item.MakeVisible(False);
 end;
 
 end.

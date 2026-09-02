@@ -1,8 +1,167 @@
 object Form1: TForm1
-  Left = 576
-  Height = 240
-  Top = 277
-  Width = 320
-  Caption = 'MIDI Lab'
+  Left = 300
+  Height = 620
+  Top = 160
+  Width = 980
+  Caption = 'MidiLab'
+  ClientHeight = 620
+  ClientWidth = 980
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poScreenCenter
   LCLVersion = '4.4.0.0'
+  object TopPanel: TPanel
+    Left = 0
+    Height = 84
+    Top = 0
+    Width = 980
+    Align = alTop
+    ClientHeight = 84
+    ClientWidth = 980
+    TabOrder = 0
+    object InputLabel: TLabel
+      Left = 12
+      Height = 15
+      Top = 10
+      Width = 60
+      Caption = 'MIDI input'
+    end
+    object OutputLabel: TLabel
+      Left = 430
+      Height = 15
+      Top = 10
+      Width = 68
+      Caption = 'MIDI output'
+    end
+    object InputCombo: TComboBox
+      Left = 12
+      Height = 30
+      Top = 31
+      Width = 300
+      ItemHeight = 0
+      Style = csDropDownList
+      TabOrder = 0
+    end
+    object ConnectInputButton: TButton
+      Left = 320
+      Height = 32
+      Top = 29
+      Width = 90
+      Caption = 'Connect'
+      OnClick = ConnectInputButtonClick
+      TabOrder = 1
+    end
+    object OutputCombo: TComboBox
+      Left = 430
+      Height = 30
+      Top = 31
+      Width = 300
+      ItemHeight = 0
+      Style = csDropDownList
+      TabOrder = 2
+    end
+    object ConnectOutputButton: TButton
+      Left = 738
+      Height = 32
+      Top = 29
+      Width = 90
+      Caption = 'Connect'
+      OnClick = ConnectOutputButtonClick
+      TabOrder = 3
+    end
+    object RefreshButton: TButton
+      Left = 840
+      Height = 32
+      Top = 29
+      Width = 90
+      Caption = 'Refresh'
+      OnClick = RefreshButtonClick
+      TabOrder = 4
+    end
+  end
+  object SendPanel: TPanel
+    Left = 0
+    Height = 78
+    Top = 519
+    Width = 980
+    Align = alBottom
+    ClientHeight = 78
+    ClientWidth = 980
+    TabOrder = 1
+    object RawLabel: TLabel
+      Left = 12
+      Height = 15
+      Top = 8
+      Width = 123
+      Caption = 'Raw hexadecimal MIDI'
+    end
+    object RawEdit: TEdit
+      Left = 12
+      Height = 30
+      Top = 31
+      Width = 700
+      TabOrder = 0
+      Text = 'B0 10 64'
+    end
+    object SendButton: TButton
+      Left = 720
+      Height = 32
+      Top = 29
+      Width = 90
+      Caption = 'Send'
+      OnClick = SendButtonClick
+      TabOrder = 1
+    end
+    object ClearButton: TButton
+      Left = 820
+      Height = 32
+      Top = 29
+      Width = 90
+      Caption = 'Clear'
+      OnClick = ClearButtonClick
+      TabOrder = 2
+    end
+  end
+  object StatusBar: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 597
+    Width = 980
+    Panels = <>
+    SimplePanel = True
+  end
+  object MonitorList: TListView
+    Left = 0
+    Height = 435
+    Top = 84
+    Width = 980
+    Align = alClient
+    Columns = <
+      item
+        Caption = 'UTC time'
+        Width = 110
+      end
+      item
+        Caption = 'Dir'
+        Width = 45
+      end
+      item
+        Caption = 'Raw bytes'
+        Width = 260
+      end
+      item
+        Caption = 'Decoded'
+        Width = 430
+      end>
+    ReadOnly = True
+    RowSelect = True
+    TabOrder = 3
+    ViewStyle = vsReport
+  end
+  object PollTimer: TTimer
+    Interval = 20
+    OnTimer = PollTimerTimer
+    Left = 944
+    Top = 552
+  end
 end
