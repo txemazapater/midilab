@@ -1,0 +1,8 @@
+object Form1: TForm1
+  Left = 576
+  Height = 240
+  Top = 277
+  Width = 320
+  Caption = 'MIDI Lab'
+  LCLVersion = '4.4.0.0'
+end

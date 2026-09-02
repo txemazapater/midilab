@@ -1,14 +1,28 @@
-program MidiLab;
+program midilab;
 
 {$mode objfpc}{$H+}
 
 uses
-  Interfaces, Forms, MainForm;
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  {$IFDEF HASAMIGA}
+  athreads,
+  {$ENDIF}
+  Interfaces, // this includes the LCL widgetset
+  Forms, mainform
+  { you can add units after this };
 
-var Form: TMidiLabForm;
+{$R *.res}
+
 begin
-  Application.Title := 'MidiLab';
+  RequireDerivedFormResource:=True;
+  Application.Scaled:=True;
+  {$PUSH}{$WARN 5044 OFF}
+  Application.MainFormOnTaskbar:=True;
+  {$POP}
   Application.Initialize;
-  Form := TMidiLabForm.CreateNew(Application);
+  Application.CreateForm(TForm1, Form1);
   Application.Run;
 end.
+
