@@ -9,6 +9,8 @@ uses Midi.Core;
 function RolandChecksum(const AData: array of Byte): Byte;
 function BuildRolandDataSet1(ADeviceId, AModelId: Byte;
   const AAddress, AData: array of Byte): TMidiBytes;
+function BuildRolandRequest1(ADeviceId, AModelId: Byte;
+  const AAddress, ASize: array of Byte): TMidiBytes;
 
 implementation
 
@@ -36,6 +38,27 @@ begin
   Result[2] := ADeviceId;
   Result[3] := AModelId;
   Result[4] := $12;
+  for I := 0 to High(CheckData) do Result[5 + I] := CheckData[I];
+  Result[5 + Length(CheckData)] := RolandChecksum(CheckData);
+  Result[6 + Length(CheckData)] := $F7;
+end;
+
+function BuildRolandRequest1(ADeviceId, AModelId: Byte;
+  const AAddress, ASize: array of Byte): TMidiBytes;
+var
+  CheckData: TMidiBytes;
+  I, P: Integer;
+begin
+  SetLength(CheckData, Length(AAddress) + Length(ASize));
+  P := 0;
+  for I := 0 to High(AAddress) do begin CheckData[P] := AAddress[I]; Inc(P); end;
+  for I := 0 to High(ASize) do begin CheckData[P] := ASize[I]; Inc(P); end;
+  SetLength(Result, 7 + Length(CheckData));
+  Result[0] := $F0;
+  Result[1] := $41;
+  Result[2] := ADeviceId;
+  Result[3] := AModelId;
+  Result[4] := $11;
   for I := 0 to High(CheckData) do Result[5 + I] := CheckData[I];
   Result[5 + Length(CheckData)] := RolandChecksum(CheckData);
   Result[6 + Length(CheckData)] := $F7;

@@ -18,6 +18,7 @@ type
     MonitorList: TListView;
     OutputCombo: TComboBox;
     OutputLabel: TLabel;
+    PatchDumpButton: TButton;
     PollTimer: TTimer;
     RawEdit: TEdit;
     RawLabel: TLabel;
@@ -32,6 +33,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure PollTimerTimer(Sender: TObject);
+    procedure PatchDumpButtonClick(Sender: TObject);
     procedure RefreshButtonClick(Sender: TObject);
     procedure SendButtonClick(Sender: TObject);
   private
@@ -51,9 +53,9 @@ implementation
 {$R *.lfm}
 
 {$IFDEF WINDOWS}
-uses Midi.WinMM;
+uses Midi.WinMM, patchdumpform;
 {$ELSE}
-uses Midi.Null;
+uses Midi.Null, patchdumpform;
 {$ENDIF}
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -98,6 +100,11 @@ end;
 procedure TForm1.RefreshButtonClick(Sender: TObject);
 begin
   RefreshDevices;
+end;
+
+procedure TForm1.PatchDumpButtonClick(Sender: TObject);
+begin
+  with TMidiPatchDumpForm.Create(Self) do Show;
 end;
 
 procedure TForm1.ConnectInputButtonClick(Sender: TObject);

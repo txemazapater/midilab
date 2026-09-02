@@ -12,11 +12,11 @@ object Form1: TForm1
   LCLVersion = '4.4.0.0'
   object TopPanel: TPanel
     Left = 0
-    Height = 84
+    Height = 126
     Top = 0
     Width = 980
     Align = alTop
-    ClientHeight = 84
+    ClientHeight = 126
     ClientWidth = 980
     TabOrder = 0
     object InputLabel: TLabel
@@ -78,6 +78,15 @@ object Form1: TForm1
       OnClick = RefreshButtonClick
       TabOrder = 4
     end
+    object PatchDumpButton: TButton
+      Left = 12
+      Height = 32
+      Top = 82
+      Width = 140
+      Caption = 'JV-2080 Patch Dump'
+      OnClick = PatchDumpButtonClick
+      TabOrder = 5
+    end
   end
   object SendPanel: TPanel
     Left = 0
@@ -132,8 +141,8 @@ object Form1: TForm1
   end
   object MonitorList: TListView
     Left = 0
-    Height = 435
-    Top = 84
+    Height = 393
+    Top = 126
     Width = 980
     Align = alClient
     Columns = <

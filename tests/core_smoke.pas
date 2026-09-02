@@ -21,5 +21,7 @@ begin
   Check(RolandChecksum([$10, $00, $00, $00, $01]) = $6F, 'Roland checksum');
   S := BuildRolandDataSet1($10, $6A, [$10, $00, $00, $00], [$01]);
   Check((Length(S) = 12) and (S[0] = $F0) and (S[High(S)] = $F7), 'DT1 frame');
+  S := BuildRolandRequest1($10, $6A, [$03, $00, $00, $00], [$00, $00, $00, $4A]);
+  Check((Length(S) = 15) and (S[4] = $11) and (S[13] = $33), 'RQ1 frame');
   WriteLn('MidiLab core smoke tests passed.');
 end.

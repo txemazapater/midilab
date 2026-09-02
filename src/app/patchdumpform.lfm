@@ -1,0 +1,128 @@
+object MidiPatchDumpForm: TMidiPatchDumpForm
+  Left = 360
+  Height = 640
+  Top = 180
+  Width = 1000
+  Caption = 'JV-2080 Temporary Patch Dump'
+  ClientHeight = 640
+  ClientWidth = 1000
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  Position = poScreenCenter
+  LCLVersion = '4.4.0.0'
+  object TopPanel: TPanel
+    Left = 0
+    Height = 126
+    Top = 0
+    Width = 1000
+    Align = alTop
+    ClientHeight = 126
+    ClientWidth = 1000
+    TabOrder = 0
+    object InputLabel: TLabel
+      Left = 12
+      Height = 15
+      Top = 10
+      Width = 60
+      Caption = 'MIDI input'
+    end
+    object OutputLabel: TLabel
+      Left = 420
+      Height = 15
+      Top = 10
+      Width = 68
+      Caption = 'MIDI output'
+    end
+    object DeviceIdLabel: TLabel
+      Left = 12
+      Height = 15
+      Top = 78
+      Width = 95
+      Caption = 'Device ID (hex)'
+    end
+    object InputCombo: TComboBox
+      Left = 12
+      Height = 30
+      Top = 31
+      Width = 390
+      ItemHeight = 0
+      Style = csDropDownList
+      TabOrder = 0
+    end
+    object OutputCombo: TComboBox
+      Left = 420
+      Height = 30
+      Top = 31
+      Width = 390
+      ItemHeight = 0
+      Style = csDropDownList
+      TabOrder = 1
+    end
+    object ConnectButton: TButton
+      Left = 825
+      Height = 32
+      Top = 29
+      Width = 110
+      Caption = 'Connect'
+      OnClick = ConnectButtonClick
+      TabOrder = 2
+    end
+    object DeviceIdEdit: TEdit
+      Left = 112
+      Height = 30
+      Top = 72
+      Width = 50
+      TabOrder = 3
+      Text = '10'
+    end
+    object RequestButton: TButton
+      Left = 180
+      Height = 32
+      Top = 71
+      Width = 180
+      Caption = 'Request selected patch'
+      Enabled = False
+      OnClick = RequestButtonClick
+      TabOrder = 4
+    end
+    object ClearButton: TButton
+      Left = 375
+      Height = 32
+      Top = 71
+      Width = 90
+      Caption = 'Clear'
+      OnClick = ClearButtonClick
+      TabOrder = 5
+    end
+  end
+  object DumpMemo: TMemo
+    Left = 0
+    Height = 491
+    Top = 126
+    Width = 1000
+    Align = alClient
+    Font.Name = 'Consolas'
+    Font.Pitch = fpFixed
+    Font.Quality = fqNonAntialiased
+    ParentFont = False
+    ReadOnly = True
+    ScrollBars = ssAutoBoth
+    TabOrder = 1
+    WordWrap = False
+  end
+  object StatusBar: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 617
+    Width = 1000
+    Panels = <>
+    SimplePanel = True
+  end
+  object PollTimer: TTimer
+    Interval = 20
+    OnTimer = PollTimerTimer
+    Left = 952
+    Top = 584
+  end
+end

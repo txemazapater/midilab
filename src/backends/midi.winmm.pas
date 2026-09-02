@@ -20,6 +20,8 @@ type
 implementation
 
 type
+  TByteBuffer = array[0..0] of Byte;
+  PByteBuffer = ^TByteBuffer;
   PMidiNode = ^TMidiNode;
   TMidiNode = record
     Message: TMidiMessage;
@@ -28,11 +30,17 @@ type
 
   TWinMMMidiInput = class(TInterfacedObject, IMidiInput)
   private
+    const BufferCount = 4;
+    const BufferSize = 1024;
     FEndpoint: TMidiEndpoint;
     FHandle: HMIDIIN;
     FLock: TRTLCriticalSection;
     FHead, FTail: PMidiNode;
+    FHeaders: array[0..BufferCount - 1] of MIDIHDR;
+    FBuffers: array[0..BufferCount - 1] of Pointer;
+    FClosing: Boolean;
     procedure EnqueueShort(AValue: DWORD);
+    procedure EnqueueLong(AHeader: PMIDIHDR);
   public
     constructor Create(const AEndpoint: TMidiEndpoint);
     destructor Destroy; override;
@@ -56,8 +64,14 @@ type
 procedure MidiInputCallback(AHandle: HMIDIIN; AMessage: UINT;
   AInstance, AParam1, AParam2: DWORD_PTR); stdcall;
 begin
-  if (AMessage = MIM_DATA) and (AInstance <> 0) then
-    TWinMMMidiInput(Pointer(AInstance)).EnqueueShort(DWORD(AParam1));
+  if AInstance = 0 then Exit;
+  case AMessage of
+    MIM_DATA:
+      TWinMMMidiInput(Pointer(AInstance)).EnqueueShort(DWORD(AParam1));
+    MIM_LONGDATA:
+      TWinMMMidiInput(Pointer(AInstance)).EnqueueLong(
+        PMIDIHDR(Pointer(AParam1)));
+  end;
 end;
 
 function DeviceIndex(const AEndpoint: TMidiEndpoint): UINT;
@@ -107,7 +121,7 @@ function TWinMMMidiBackend.OpenOutput(const AEndpoint: TMidiEndpoint): IMidiOutp
 begin Result := TWinMMMidiOutput.Create(AEndpoint); end;
 
 constructor TWinMMMidiInput.Create(const AEndpoint: TMidiEndpoint);
-var R: MMRESULT;
+var I: Integer; R: MMRESULT;
 begin
   inherited Create;
   FEndpoint := AEndpoint;
@@ -115,16 +129,65 @@ begin
   R := midiInOpen(@FHandle, DeviceIndex(AEndpoint), DWORD_PTR(@MidiInputCallback),
     DWORD_PTR(Self), CALLBACK_FUNCTION);
   if R <> MMSYSERR_NOERROR then raise Exception.CreateFmt('Cannot open MIDI input (%d)', [R]);
+  for I := 0 to BufferCount - 1 do
+  begin
+    GetMem(FBuffers[I], BufferSize);
+    FillChar(FHeaders[I], SizeOf(MIDIHDR), 0);
+    FHeaders[I].lpData := PChar(FBuffers[I]);
+    FHeaders[I].dwBufferLength := BufferSize;
+    R := midiInPrepareHeader(FHandle, @FHeaders[I], SizeOf(MIDIHDR));
+    if R <> MMSYSERR_NOERROR then
+      raise Exception.CreateFmt('Cannot prepare MIDI SysEx input buffer (%d)', [R]);
+    R := midiInAddBuffer(FHandle, @FHeaders[I], SizeOf(MIDIHDR));
+    if R <> MMSYSERR_NOERROR then
+      raise Exception.CreateFmt('Cannot queue MIDI SysEx input buffer (%d)', [R]);
+  end;
 end;
 
 destructor TWinMMMidiInput.Destroy;
-var M: TMidiMessage;
+var I: Integer; M: TMidiMessage;
 begin
+  FClosing := True;
   Stop;
+  if FHandle <> 0 then midiInReset(FHandle);
+  for I := 0 to BufferCount - 1 do
+  begin
+    if FHeaders[I].lpData <> nil then
+      midiInUnprepareHeader(FHandle, @FHeaders[I], SizeOf(MIDIHDR));
+    if FBuffers[I] <> nil then FreeMem(FBuffers[I]);
+  end;
   if FHandle <> 0 then midiInClose(FHandle);
   while TryRead(M) do ;
   DoneCriticalSection(FLock);
   inherited Destroy;
+end;
+
+procedure TWinMMMidiInput.EnqueueLong(AHeader: PMIDIHDR);
+var
+  B: TMidiBytes;
+  I: Integer;
+  N: PMidiNode;
+begin
+  if (AHeader = nil) or (AHeader^.dwBytesRecorded = 0) then Exit;
+  B := nil;
+  SetLength(B, AHeader^.dwBytesRecorded);
+  for I := 0 to Integer(AHeader^.dwBytesRecorded) - 1 do
+    B[I] := PByteBuffer(AHeader^.lpData)^[I];
+  New(N);
+  N^.Message := MidiMessageFromBytes(B, mdInput, FEndpoint.Id);
+  N^.Next := nil;
+  EnterCriticalSection(FLock);
+  try
+    if FTail = nil then FHead := N else FTail^.Next := N;
+    FTail := N;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
+  if not FClosing then
+  begin
+    AHeader^.dwBytesRecorded := 0;
+    midiInAddBuffer(FHandle, AHeader, SizeOf(MIDIHDR));
+  end;
 end;
 
 procedure TWinMMMidiInput.Start;
@@ -185,10 +248,30 @@ begin if FHandle <> 0 then midiOutClose(FHandle); inherited Destroy; end;
 function TWinMMMidiOutput.Endpoint: TMidiEndpoint; begin Result := FEndpoint; end;
 
 procedure TWinMMMidiOutput.Send(const ABytes: array of Byte);
-var PackedMessage: DWORD; R: MMRESULT;
+var
+  Header: MIDIHDR;
+  PackedMessage: DWORD;
+  R: MMRESULT;
 begin
-  if (Length(ABytes) < 1) or (Length(ABytes) > 3) then
-    raise Exception.Create('WinMM short output accepts one to three bytes; SysEx output is the next slice.');
+  if Length(ABytes) < 1 then raise Exception.Create('MIDI message is empty.');
+  if (ABytes[0] = $F0) or (Length(ABytes) > 3) then
+  begin
+    FillChar(Header, SizeOf(Header), 0);
+    Header.lpData := PChar(@ABytes[0]);
+    Header.dwBufferLength := Length(ABytes);
+    R := midiOutPrepareHeader(FHandle, @Header, SizeOf(Header));
+    if R <> MMSYSERR_NOERROR then
+      raise Exception.CreateFmt('Cannot prepare MIDI SysEx output (%d)', [R]);
+    try
+      R := midiOutLongMsg(FHandle, @Header, SizeOf(Header));
+      if R <> MMSYSERR_NOERROR then
+        raise Exception.CreateFmt('MIDI SysEx send failed (%d)', [R]);
+      while (Header.dwFlags and MHDR_DONE) = 0 do Sleep(1);
+    finally
+      midiOutUnprepareHeader(FHandle, @Header, SizeOf(Header));
+    end;
+    Exit;
+  end;
   PackedMessage := ABytes[0];
   if Length(ABytes) > 1 then
     PackedMessage := PackedMessage or (DWORD(ABytes[1]) shl 8);
