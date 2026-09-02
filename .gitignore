@@ -1,0 +1,12 @@
+/build/
+/lib/
+*.compiled
+*.exe
+*.o
+*.or
+*.ppu
+*.res
+*.rst
+*.lps
+backup/
+__history/

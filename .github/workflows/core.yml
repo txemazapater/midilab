@@ -1,0 +1,17 @@
+name: Portable core
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Free Pascal
+        run: sudo apt-get update && sudo apt-get install -y fp-compiler
+      - name: Compile core smoke test
+        run: mkdir -p build/tests && fpc -Fu./src/core -Fu./src/protocols/roland -FE./build/tests tests/core_smoke.pas
+      - name: Run core smoke test
+        run: ./build/tests/core_smoke
