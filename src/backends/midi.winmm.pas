@@ -73,6 +73,7 @@ function TWinMMMidiBackend.EnumerateInputs: TMidiEndpointArray;
 var I, Count: UINT; Caps: MIDIINCAPS;
 begin
   Count := midiInGetNumDevs;
+  Result := nil;
   SetLength(Result, Count);
   for I := 0 to Count - 1 do
   begin
@@ -88,6 +89,7 @@ function TWinMMMidiBackend.EnumerateOutputs: TMidiEndpointArray;
 var I, Count: UINT; Caps: MIDIOUTCAPS;
 begin
   Count := midiOutGetNumDevs;
+  Result := nil;
   SetLength(Result, Count);
   for I := 0 to Count - 1 do
   begin
@@ -134,6 +136,7 @@ function TWinMMMidiInput.Endpoint: TMidiEndpoint; begin Result := FEndpoint; end
 procedure TWinMMMidiInput.EnqueueShort(AValue: DWORD);
 var N: PMidiNode; Status, L: Byte; B: TMidiBytes;
 begin
+  B := nil;
   Status := AValue and $FF;
   if Status >= $F8 then L := 1
   else if (Status and $F0) in [$C0, $D0] then L := 2 else L := 3;
@@ -182,14 +185,16 @@ begin if FHandle <> 0 then midiOutClose(FHandle); inherited Destroy; end;
 function TWinMMMidiOutput.Endpoint: TMidiEndpoint; begin Result := FEndpoint; end;
 
 procedure TWinMMMidiOutput.Send(const ABytes: array of Byte);
-var Packed: DWORD; R: MMRESULT;
+var PackedMessage: DWORD; R: MMRESULT;
 begin
   if (Length(ABytes) < 1) or (Length(ABytes) > 3) then
     raise Exception.Create('WinMM short output accepts one to three bytes; SysEx output is the next slice.');
-  Packed := ABytes[0];
-  if Length(ABytes) > 1 then Packed := Packed or (DWORD(ABytes[1]) shl 8);
-  if Length(ABytes) > 2 then Packed := Packed or (DWORD(ABytes[2]) shl 16);
-  R := midiOutShortMsg(FHandle, Packed);
+  PackedMessage := ABytes[0];
+  if Length(ABytes) > 1 then
+    PackedMessage := PackedMessage or (DWORD(ABytes[1]) shl 8);
+  if Length(ABytes) > 2 then
+    PackedMessage := PackedMessage or (DWORD(ABytes[2]) shl 16);
+  R := midiOutShortMsg(FHandle, PackedMessage);
   if R <> MMSYSERR_NOERROR then raise Exception.CreateFmt('MIDI send failed (%d)', [R]);
 end;
 

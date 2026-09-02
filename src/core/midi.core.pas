@@ -110,7 +110,7 @@ var
 begin
   Result := False;
   AError := '';
-  SetLength(ABytes, 0);
+  ABytes := nil;
   Tokens := TStringList.Create;
   try
     Tokens.Delimiter := ' ';
@@ -125,7 +125,7 @@ begin
          not TryStrToInt('$' + Tokens[I], V) or (V < 0) or (V > 255) then
       begin
         AError := 'Invalid hexadecimal byte: "' + Tokens[I] + '"';
-        SetLength(ABytes, 0);
+        ABytes := nil;
         Exit;
       end;
       ABytes[I] := Byte(V);
