@@ -1,8 +1,0 @@
-object Form1: TForm1
-  Left = 389
-  Height = 240
-  Top = 133
-  Width = 320
-  Caption = 'MIDI Lab'
-  LCLVersion = '4.4.0.0'
-end
