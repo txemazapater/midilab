@@ -19,6 +19,10 @@ type
 
 implementation
 
+const
+  MidiInputBufferCount = 4;
+  MidiInputBufferSize = 1024;
+
 type
   TByteBuffer = array[0..0] of Byte;
   PByteBuffer = ^TByteBuffer;
@@ -30,14 +34,12 @@ type
 
   TWinMMMidiInput = class(TInterfacedObject, IMidiInput)
   private
-    const BufferCount = 4;
-    const BufferSize = 1024;
     FEndpoint: TMidiEndpoint;
     FHandle: HMIDIIN;
     FLock: TRTLCriticalSection;
     FHead, FTail: PMidiNode;
-    FHeaders: array[0..BufferCount - 1] of MIDIHDR;
-    FBuffers: array[0..BufferCount - 1] of Pointer;
+    FHeaders: array[0..MidiInputBufferCount - 1] of MIDIHDR;
+    FBuffers: array[0..MidiInputBufferCount - 1] of Pointer;
     FClosing: Boolean;
     procedure EnqueueShort(AValue: DWORD);
     procedure EnqueueLong(AHeader: PMIDIHDR);
@@ -129,12 +131,12 @@ begin
   R := midiInOpen(@FHandle, DeviceIndex(AEndpoint), DWORD_PTR(@MidiInputCallback),
     DWORD_PTR(Self), CALLBACK_FUNCTION);
   if R <> MMSYSERR_NOERROR then raise Exception.CreateFmt('Cannot open MIDI input (%d)', [R]);
-  for I := 0 to BufferCount - 1 do
+  for I := 0 to MidiInputBufferCount - 1 do
   begin
-    GetMem(FBuffers[I], BufferSize);
+    GetMem(FBuffers[I], MidiInputBufferSize);
     FillChar(FHeaders[I], SizeOf(MIDIHDR), 0);
     FHeaders[I].lpData := PChar(FBuffers[I]);
-    FHeaders[I].dwBufferLength := BufferSize;
+    FHeaders[I].dwBufferLength := MidiInputBufferSize;
     R := midiInPrepareHeader(FHandle, @FHeaders[I], SizeOf(MIDIHDR));
     if R <> MMSYSERR_NOERROR then
       raise Exception.CreateFmt('Cannot prepare MIDI SysEx input buffer (%d)', [R]);
@@ -150,7 +152,7 @@ begin
   FClosing := True;
   Stop;
   if FHandle <> 0 then midiInReset(FHandle);
-  for I := 0 to BufferCount - 1 do
+  for I := 0 to MidiInputBufferCount - 1 do
   begin
     if FHeaders[I].lpData <> nil then
       midiInUnprepareHeader(FHandle, @FHeaders[I], SizeOf(MIDIHDR));
